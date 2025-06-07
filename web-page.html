@@ -22,15 +22,36 @@
     <h1>
 
     </h1>
-    <button onclick="">
+    <button onclick="sendCommand(CMD.ON)">
         On
     </button>
-    <button onclick="">
+    <button onclick="sendCommand(CMD.OFF)">
         Off
     </button>
 
-    <script>
-
+    <script type="module">
+        "use strict"
+        import {CMD} from "./commandList.js";
+        const ipAddress = "";
+        function sendCommand(command) {
+            fetch(`${ipAddress}/${command}`).then(
+                response => {
+                    if (!response.ok) {
+                        throw new Error("Response is not ok.");
+                    }
+                    // return response.text();
+                    return response.json();
+                }
+            ).then(
+                data => {
+                    console.log("Message: ESP returns a message: ", data);
+                }
+            ).catch(
+                error => {
+                    console.error("Error: ", error);
+                }
+            )
+        }
     </script>
 </body>
 </html>
