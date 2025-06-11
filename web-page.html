@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>
+        LAMP CONTROLLER
+    </title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 10vw;
+        }
+        button {
+            padding: 10px 30px;
+            font-size: 16px;
+            margin: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+
+    </h1>
+    <button onclick="sendCommand(CMD.ON)">
+        On
+    </button>
+    <button onclick="sendCommand(CMD.OFF)">
+        Off
+    </button>
+
+    <script type="module">
+        "use strict"
+        import {CMD} from "./commandList.js";
+        const ipAddress = "";
+        function sendCommand(command) {
+            fetch(`${ipAddress}/${command}`).then(
+                response => {
+                    if (!response.ok) {
+                        throw new Error("Response is not ok.");
+                    }
+                    // return response.text();
+                    return response.json();
+                }
+            ).then(
+                data => {
+                    console.log("Message: ESP returns a message: ", data);
+                }
+            ).catch(
+                error => {
+                    console.error("Error: ", error);
+                }
+            )
+        }
+    </script>
+</body>
+</html>
