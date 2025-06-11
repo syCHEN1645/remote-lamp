@@ -20,19 +20,19 @@
 
 <body>
     <h1>
-
+        Main Page
     </h1>
-    <button onclick="sendCommand(CMD.ON)">
+    <button id="btnOn">
         On
     </button>
-    <button onclick="sendCommand(CMD.OFF)">
+    <button id="btnOff">
         Off
     </button>
 
     <script type="module">
         "use strict"
         import {CMD} from "./commandList.js";
-        const ipAddress = "";
+        const ipAddress = "http://172.20.10.6";
         function sendCommand(command) {
             fetch(`${ipAddress}/${command}`).then(
                 response => {
@@ -52,6 +52,9 @@
                 }
             )
         }
+
+        document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
+        document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));
     </script>
 </body>
 </html>

@@ -18,7 +18,7 @@ void loop() {
   WiFiClient client = server.accept();
   if (client) {
     String req = getReq(client);
-    handleReq(req);
+    handleReq(client, req);
   }
 }
 
@@ -37,13 +37,24 @@ String getReq(WiFiClient client) {
   return req;
 }
 
-void handleReq(String req) {
+void handleReq(WiFiClient client, String req) {
   if (req == "") {
     Serial.println("Empty request, do nothing");
   }
   // do something
   if (req.indexOf("/on") >= 0) {
-    
+    Serial.println("Sending response ...");
+    // Sending response
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: application/json");
+    // Avoid CROS error
+    client.println("Access-Control-Allow-Origin: *");
+    client.println("Connection: close");
+    // Format
+    client.println();
+    client.println("{\"message\": \"Lamp turned on\"}");
+    delay(10);
+    client.stop();
   }
 }
 
