@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <vector>
 
 const char* ssid = "csy";
 const char* password = "55555555";
@@ -38,26 +39,65 @@ String getReq(WiFiClient client) {
 }
 
 void handleReq(WiFiClient client, String req) {
-  if (req == "") {
-    Serial.println("Empty request, do nothing");
-  }
-  // do something
+  String command = "";
   if (req.indexOf("/on") >= 0) {
-    Serial.println("Sending response ...");
-    // Sending response
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: application/json");
-    // Avoid CROS error
-    client.println("Access-Control-Allow-Origin: *");
-    client.println("Connection: close");
-    // Format
-    client.println();
-    client.println("{\"message\": \"Lamp turned on\"}");
-    delay(10);
-    client.stop();
+    command = "/on";
+  } else if (req.indexOf("/off") >= 0) {
+    command = "/off";
+  } else {
+
   }
+  executeCommand(command);
+  sendResponse(client, command);
 }
 
+void executeCommand(String command) {
+  // do something
+}
+
+
+std::vector<String> generateHeader(String command) {
+  std::vector<String> res = {};
+  res.push_back("HTTP/1.1 200 OK");
+  if (command == "/on" || "/off") {
+    res.push_back("Content-Type: application/json");
+  } else if (command == "") {
+    res.push_back("Content-Type: text/plain");
+  }  
+  res.push_back("Access-Control-Allow-Origin: *");
+  res.push_back("Connection: close");
+
+  return res;
+}
+
+std::vector<String> generateContent(String command) {
+  std::vector<String> res = {};
+  if (command == "/on") {
+    res.push_back("{\"message\": \"Lamp turned on\"}");
+  } else if (command == "/off") {
+    res.push_back("{\"message\": \"Lamp turned off\"}");
+  } else if (command == "") {
+    res.push_back("This is a server to ESP32");
+  } else {
+  }
+
+  return res;
+}
+
+void sendResponse(WiFiClient client, String command) {
+  Serial.println("Sending response ...");
+  std::vector<String> header = generateHeader(command);
+  std::vector<String> content = generateContent(command);
+  for (String str : header) {
+    client.println(str);
+  }
+  client.println();
+  for (String str : content) {
+    client.println(str);
+  }
+  delay(10);
+  client.stop();
+}
 void connectWiFi(const char* wifiName, const char* wifiPassword) {
   Serial.print("Connecting to ");
   Serial.println(ssid);
