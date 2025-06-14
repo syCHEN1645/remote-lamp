@@ -1,6 +1,4 @@
 #include <WiFi.h>
-<<<<<<< Updated upstream
-=======
 #include <vector>
 #define PIN_R 27
 #define PIN_G 26
@@ -8,7 +6,6 @@
 #define CH_R 0
 #define CH_G 1
 #define CH_B 2
->>>>>>> Stashed changes
 
 const uint8_t frequency = 5000;
 const uint8_t resolution = 8;
@@ -57,15 +54,22 @@ void handleReq(String req) {
   if (req == "") {
     Serial.println("Empty request, do nothing");
   }
+  
+  String command = "";
   // do something
-<<<<<<< Updated upstream
   if (req.indexOf("/on") >= 0) {
-    
-=======
+    command = "/on";
+  } else if (req.indexOf("/off") >= 0) {
+    command = "/off";
+  } else {
+    command = "";
+  }
+
+
   if (command == "/on") {
-
+    onLamp();
   } else if (command == "/off") {
-
+    offLamp();
   } else if (command == "") {
 
   }
@@ -95,12 +99,23 @@ std::vector<String> generateContent(String command) {
   } else if (command == "") {
     res.push_back("This is a server to ESP32");
   } else {
->>>>>>> Stashed changes
+
   }
 }
 
-<<<<<<< Updated upstream
-=======
+void onLamp() {
+
+}
+
+void offLamp() {
+
+}
+
+void resetLamp() {
+
+}
+
+
 void sendResponse(WiFiClient client, String command) {
   Serial.println("Sending response ...");
   std::vector<String> header = generateHeader(command);
@@ -116,8 +131,6 @@ void sendResponse(WiFiClient client, String command) {
   client.stop();
 }
 
-
->>>>>>> Stashed changes
 void connectWiFi(const char* wifiName, const char* wifiPassword) {
   Serial.print("Connecting to ");
   Serial.println(ssid);
