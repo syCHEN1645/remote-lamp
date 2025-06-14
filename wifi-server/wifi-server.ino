@@ -11,9 +11,12 @@ const uint8_t frequency = 5000;
 const uint8_t resolution = 8;
 const char* ssid = "csy";
 const char* password = "55555555";
-static volatile int red_val = 255;
-static volatile int green_val = 255;
-static volatile int blue_val = 255;
+volatile int red_val = 255;
+volatile int green_val = 255;
+volatile int blue_val = 255;
+unsigned long time_sec = 0;
+bool isTimed = false;
+hw_timer_t *timer = NULL;
 WiFiServer server(80);
 
 void setup() {
@@ -29,11 +32,30 @@ void setup() {
 
 void loop() {
   WiFiClient client = server.accept();
+  // Serial.println(0);
+  if (isTimed) {
+    if (timerReadSeconds(timer) >= time_sec) {
+      timerEnd(timer);
+      Serial.printf("Time %l is up.", time_sec);
+      isTimed = false;
+      time_sec = 0;
+    }
+  }
+
+  ledcWrite(PIN_R, red_val);
+  ledcWrite(PIN_G, green_val);
+  ledcWrite(PIN_B, blue_val);
+  
+  // Only true if a request is sent.
   if (client) {
     String req = getReq(client);
+    Serial.println(1);
     String command = getCommand(req);
-    handleReq(req);
+    Serial.println(2);
+    handleReq(command);
+    Serial.println(3);
     sendResponse(client, command);
+    Serial.println(4);
   }
 }
 
@@ -84,19 +106,41 @@ String getCommand(String req) {
 }
 
 void onLamp() {
-
+  Serial.println("On lamp");
+  red_val = 255;
+  green_val = 255;
+  blue_val = 255;
+  time_sec = 0;
+  isTimed = false;
 }
 
 void offLamp() {
-
+  Serial.println("Off lamp");
+  red_val = 0;
+  green_val = 0;
+  blue_val = 0;
+  time_sec = 0;
+  isTimed = false;
 }
 
 void resetLamp() {
-
+  Serial.println("Reset lamp");
+  red_val = 0;
+  green_val = 0;
+  blue_val = 0;
+  time_sec = 0;
+  isTimed = false;
 }
 
 void timedLamp() {
-  
+  Serial.println("Timed lamp mode");
+  red_val = 255;
+  green_val = 255;
+  blue_val = 255;
+  // 
+  time_sec = 12;
+  isTimed = true;
+  timer = timerBegin(1000);
 }
 
 std::vector<String> generateHeader(String command) {
@@ -119,9 +163,14 @@ std::vector<String> generateContent(String command) {
     res.push_back("{\"message\": \"Lamp turned on\"}");
   } else if (command == "/off") {
     res.push_back("{\"message\": \"Lamp turned off\"}");
+  } else if (command == "/reset") {
+    res.push_back("{\"message\": \"Lamp reset\"}");
+  } else if (command == "/timed") {
+    res.push_back("{\"message\": \"Lamp is timed\"}");
   } else if (command == "") {
     res.push_back("This is a server to ESP32");
   } else {
+    res.push_back("An unknow request was received.")
   }
 
   return res;
@@ -157,20 +206,12 @@ void connectWiFi(const char* wifiName, const char* wifiPassword) {
 // https://espressif-docs.readthedocs-hosted.com/projects/arduino-esp32/en/latest/api/ledc.html
 void hardwareSetup() {
   // Important to delay to prevent race condition!
-  Serial.print(ledcAttachChannel(PIN_R, frequency, resolution, CH_R));
+  ledcAttachChannel(PIN_R, frequency, resolution, CH_R);
   delay(10);  
-  Serial.print(ledcAttachChannel(PIN_G, frequency, resolution, CH_G));
+  ledcAttachChannel(PIN_G, frequency, resolution, CH_G);
   delay(10);
-  Serial.print(ledcAttachChannel(PIN_B, frequency, resolution, CH_B));
+  ledcAttachChannel(PIN_B, frequency, resolution, CH_B);
   delay(10);
-
-  // ledcAttach(PIN_R, frequency, resolution);
-  // ledcAttach(PIN_G, frequency, resolution);
-  // ledcAttach(PIN_B, frequency, resolution);
-
-  // ledcAttachPin(PIN_R, CH_R);
-  // ledcAttachPin(PIN_G, CH_G);
-  // ledcAttachPin(PIN_B, CH_B);
 
   ledcWrite(PIN_R, red_val);
   ledcWrite(PIN_G, green_val);
