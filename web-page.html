@@ -10,10 +10,13 @@
             text-align: center;
             padding: 10vw;
         }
-        button {
+        button, input[type=range] {
             padding: 10px 30px;
             font-size: 16px;
             margin: 10px;
+        }
+        .slider-container {
+            margin-bottom: 1em;
         }
     </style>
 </head>
@@ -28,13 +31,53 @@
     <button id="btnOff">
         Off
     </button>
+    <button id="btnReset">
+        Reset
+    </button>
+
+    <div class="slider-container">
+        <label for="sliderR">Red: <span id="valR">0</span></label><br>
+        <input type="range" id="sliderR" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="sliderG">Green: <span id="valG">0</span></label><br>
+        <input type="range" id="sliderG" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="sliderB">Blue: <span id="valB">0</span></label><br>
+        <input type="range" id="sliderB" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="entryTime">Turn off after (minutes): </label><br>
+        <input type="number" id="entryTime" min="1" max="999" placeholder="0"><br>
+        <button id="btnSetTime">Set Timer</button>
+    </div>
 
     <script type="module">
         "use strict"
         import {CMD} from "./commandList.js";
         const ipAddress = "http://172.20.10.6";
+        
         function sendCommand(command) {
-            fetch(`${ipAddress}/${command}`).then(
+            // load is different by different commands
+            let load;
+            if (command == CMD.RGB) {
+                load = [
+                    document.getElementById(`valR`).value,
+                    document.getElementById(`valG`).value,
+                    document.getElementById(`valB`).value
+                ];
+            } else if (command == CMD.TIME) {
+                // send time
+                load = [document.getElementById(`entryTime`).value];
+            } else {
+                load = [];
+            }
+
+            fetch(`${ipAddress}/${command}/${load}`).then(
                 response => {
                     if (!response.ok) {
                         throw new Error("Response is not ok.");
@@ -50,11 +93,26 @@
                 error => {
                     console.error("Error: ", error);
                 }
-            )
+            );
         }
+
+        function updateSlider(colour) {
+            // update text number by slider position/value
+            const val = document.getElementById(`slider${colour}`).value;
+            document.getElementById(`val${colour}`).textContent = val;
+            // send RGB value to device
+            sendCommand();
+        }
+
 
         document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
         document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));
+        document.getElementById("btnReset").addEventListener("click", () => sendCommand(CMD.RST));
+        document.getElementById("btnSetTime").addEventListener("click", () => sendCommand(CMD.TIME));
+
+        document.getElementById("sliderR").addEventListener("input", () => updateSlider('R'));
+        document.getElementById("sliderG").addEventListener("input", () => updateSlider('G'));
+        document.getElementById("sliderB").addEventListener("input", () => updateSlider('B'));
     </script>
 </body>
 </html>
