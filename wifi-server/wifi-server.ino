@@ -54,25 +54,35 @@ void handleReq(String req) {
   if (req == "") {
     Serial.println("Empty request, do nothing");
   }
-  
+
+  String command = getCommand(req);
+
+  if (command == "/on") {
+    onLamp();
+  } else if (command == "/off") {
+    offLamp();
+  } else if (command == "/reset") {
+    resetLamp();
+  } else if (command == "/timed") {
+    timedLamp();
+  } else {
+    // default behaviour
+  }
+}
+
+String getCommand(String req) {
   String command = "";
   // do something
   if (req.indexOf("/on") >= 0) {
     command = "/on";
   } else if (req.indexOf("/off") >= 0) {
     command = "/off";
+  } else if (req.indexOf("/reset") >= 0) {
+    command = "/reset";
   } else {
     command = "";
   }
-
-
-  if (command == "/on") {
-    onLamp();
-  } else if (command == "/off") {
-    offLamp();
-  } else if (command == "") {
-
-  }
+  return command;
 }
 
 
@@ -113,6 +123,10 @@ void offLamp() {
 
 void resetLamp() {
 
+}
+
+void timedLamp() {
+  
 }
 
 
