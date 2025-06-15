@@ -143,14 +143,17 @@ void timedLamp() {
   timer = timerBegin(1000);
 }
 
+void setColourLamp() {
+  Serial.println("Set lamp colour mode");
+  red_val = 255;
+  green_val = 255;
+  blue_val = 255;
+}
+
 std::vector<String> generateHeader(String command) {
   std::vector<String> res = {};
   res.push_back("HTTP/1.1 200 OK");
-  if (command == "/on" || "/off") {
-    res.push_back("Content-Type: application/json");
-  } else if (command == "") {
-    res.push_back("Content-Type: text/plain");
-  }  
+  res.push_back("Content-Type: application/json");
   res.push_back("Access-Control-Allow-Origin: *");
   res.push_back("Connection: close");
 
@@ -160,18 +163,27 @@ std::vector<String> generateHeader(String command) {
 std::vector<String> generateContent(String command) {
   std::vector<String> res = {};
   if (command == "/on") {
-    res.push_back("{\"message\": \"Lamp turned on\"}");
+    res.push_back("{\"message\": \"Lamp turned on\",");
   } else if (command == "/off") {
-    res.push_back("{\"message\": \"Lamp turned off\"}");
+    res.push_back("{\"message\": \"Lamp turned off\",");
   } else if (command == "/reset") {
-    res.push_back("{\"message\": \"Lamp reset\"}");
+    res.push_back("{\"message\": \"Lamp reset\",");
   } else if (command == "/timed") {
-    res.push_back("{\"message\": \"Lamp is timed\"}");
+    res.push_back("{\"message\": \"Lamp is timed\",");
+  } else if (command == "/colour") {
+    res.push_back("{\"message\": \"Lamp changes colour\",");
   } else if (command == "") {
-    res.push_back("This is a server to ESP32");
+    res.push_back("{\"message\": \"This is a server to ESP32\",");
   } else {
-    res.push_back("An unknow request was received.")
+    res.push_back("{\"message\": \"An unknow request was received.\",");
   }
+
+  // String info = "{\"red\": \"" + String(red_val) + "\"}"
+  res.push_back("\"R\": \"" + String(red_val) + "\",");
+  res.push_back("\"G\": \"" + String(green_val) + "\",");
+  res.push_back("\"B\": \"" + String(blue_val) + "\",");
+  res.push_back("\"timed\": \"" + String(isTimed) + "\",");
+  res.push_back("\"time\": \"" + String(time_sec) + "\"}");
 
   return res;
 }
