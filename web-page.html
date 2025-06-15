@@ -88,12 +88,21 @@
             ).then(
                 data => {
                     console.log("Message: ESP returns a message: ", data);
+                    // update information on UI display to match the actual status of device
+                    setSlider("R", parseInt(data.R));
+                    setSlider("G", parseInt(data.G));
+                    setSlider("B", parseInt(data.B));
                 }
             ).catch(
                 error => {
                     console.error("Error: ", error);
                 }
             );
+        }
+
+        function setSlider(colour, val) {
+            document.getElementById(`slider${colour}`).value = val;
+            document.getElementById(`val${colour}`).textContent = val;
         }
 
         function updateSlider(colour) {
