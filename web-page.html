@@ -58,7 +58,13 @@
 
     <script type="module">
         "use strict"
-        import {CMD} from "./commandList.js";
+        const CMD = {
+            ON: 'on',
+            OFF: 'off',
+            RGB: 'colour',
+            TIME: 'timed',
+            RST: 'reset',
+        };
         const ipAddress = "http://172.20.10.6";
         
         function sendCommand(command) {
@@ -72,7 +78,7 @@
                 ];
             } else if (command == CMD.TIME) {
                 // send time
-                load = [document.getElementById(`entryTime`).value];
+                load = [parseInt(document.getElementById(`entryTime`).value)];
             } else {
                 load = [];
             }
@@ -88,12 +94,21 @@
             ).then(
                 data => {
                     console.log("Message: ESP returns a message: ", data);
+                    // update information on UI display to match the actual status of device
+                    setSlider("R", parseInt(data.R));
+                    setSlider("G", parseInt(data.G));
+                    setSlider("B", parseInt(data.B));
                 }
             ).catch(
                 error => {
                     console.error("Error: ", error);
                 }
             );
+        }
+
+        function setSlider(colour, val) {
+            document.getElementById(`slider${colour}`).value = val;
+            document.getElementById(`val${colour}`).textContent = val;
         }
 
         function updateSlider(colour) {
