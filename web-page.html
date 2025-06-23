@@ -72,9 +72,9 @@
             let load;
             if (command == CMD.RGB) {
                 load = [
-                    document.getElementById(`valR`).value,
-                    document.getElementById(`valG`).value,
-                    document.getElementById(`valB`).value
+                    document.getElementById(`sliderR`).value,
+                    document.getElementById(`sliderG`).value,
+                    document.getElementById(`sliderB`).value
                 ];
             } else if (command == CMD.TIME) {
                 // send time
@@ -106,19 +106,22 @@
             );
         }
 
+        // given a number val, set the slider value and text to match val
         function setSlider(colour, val) {
             document.getElementById(`slider${colour}`).value = val;
             document.getElementById(`val${colour}`).textContent = val;
         }
 
+        // (when the slider is moved) send updated colour to device
         function updateSlider(colour) {
-            // update text number by slider position/value
+            // update text number to match slider position/value
             const val = document.getElementById(`slider${colour}`).value;
             document.getElementById(`val${colour}`).textContent = val;
             // send RGB value to device
-            sendCommand();
+            sendCommand(CMD.RGB);
         }
 
+        window.addEventListener("load", () => sendCommand(CMD.ON));
 
         document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
         document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));

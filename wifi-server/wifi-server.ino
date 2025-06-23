@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include <vector>
+
 #include <WebServer.h>
 #define PIN_R 27
 #define PIN_G 26
@@ -15,12 +15,13 @@ const char* password = "55555555";
 volatile int red_val = 255;
 volatile int green_val = 255;
 volatile int blue_val = 255;
-unsigned long time_sec = 0;
-bool isTimed = false;
+volatile unsigned long time_sec = 0;
+volatile bool isTimed = false;
 hw_timer_t *timer = NULL;
 WiFiServer server(80);
+IPAddress ip = WiFi.localIP();
 
-const char* html_code PROGMEM = R"rawliteral(
+const String html_code PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -88,16 +89,16 @@ const char* html_code PROGMEM = R"rawliteral(
             TIME: 'timed',
             RST: 'reset',
         };
-        const ipAddress = "http://172.20.10.6";
+        const ipAddress = ")rawliteral" + ip.toString() + R"rawliteral(";
         
         function sendCommand(command) {
             // load is different by different commands
             let load;
             if (command == CMD.RGB) {
                 load = [
-                    document.getElementById(`valR`).value,
-                    document.getElementById(`valG`).value,
-                    document.getElementById(`valB`).value
+                    parseInt(document.getElementById(`sliderR`).value),
+                    parseInt(document.getElementById(`sliderG`).value),
+                    parseInt(document.getElementById(`sliderB`).value)
                 ];
             } else if (command == CMD.TIME) {
                 // send time
@@ -129,19 +130,22 @@ const char* html_code PROGMEM = R"rawliteral(
             );
         }
 
+        // given a number val, set the slider value and text to match val
         function setSlider(colour, val) {
             document.getElementById(`slider${colour}`).value = val;
             document.getElementById(`val${colour}`).textContent = val;
         }
 
+        // (when the slider is moved) send updated colour to device
         function updateSlider(colour) {
-            // update text number by slider position/value
+            // update text number to match slider position/value
             const val = document.getElementById(`slider${colour}`).value;
             document.getElementById(`val${colour}`).textContent = val;
             // send RGB value to device
-            sendCommand();
+            sendCommand(CMD.RGB);
         }
 
+        window.addEventListener("load", () => sendCommand(CMD.ON));
 
         document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
         document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));
@@ -182,12 +186,32 @@ String getCommand(String req) {
     command = "/reset";
   } else if (req.indexOf("/timed") >= 0) {
     command = "/timed";
+  } else if (req.indexOf("/colour") >= 0) {
+    command = "/colour";
   } else if (req.indexOf("GET / ") >= 0 || req.indexOf("GET /HTTP") >= 0) {
     command = "/";
   } else {
     command = "/other";
   }
   return command;
+}
+
+std::vector<int> getCommandData(String req) {
+  // example: GET /0.0.0.0/colour/255,255,160 HTTP/1.1
+  String substr = req.substring(req.indexOf(" "), req.lastIndexOf(" "));
+  substr = substr.substring(substr.lastIndexOf("/") + 1, substr.length());
+  std::vector<int> data = {};
+  while (!substr.isEmpty()) {
+    int end = substr.indexOf(",");
+    if (end == -1) {
+      end = substr.length();
+    }
+    int number = substr.substring(0, end).toInt();
+    substr = substr.substring(end + 1, substr.length());
+    data.push_back(number);
+    Serial.println(number);
+  }
+  return data;
 }
 
 void onLamp() {
@@ -217,22 +241,25 @@ void resetLamp() {
   isTimed = false;
 }
 
-void timedLamp() {
+void timedLamp(String req) {
   Serial.println("Timed lamp mode");
-  red_val = 255;
-  green_val = 255;
-  blue_val = 255;
-  // 
-  time_sec = 12;
+  // time_sec = 12;
+  std::vector<int> data = getCommandData(req);
+  time_sec = data.back();
+  data.pop_back();
   isTimed = true;
   timer = timerBegin(1000);
 }
 
-void setColourLamp() {
+void setColourLamp(String req) {
   Serial.println("Set lamp colour mode");
-  red_val = 255;
-  green_val = 255;
-  blue_val = 255;
+  std::vector<int> data = getCommandData(req);
+  blue_val = data.back();
+  data.pop_back();
+  green_val = data.back();
+  data.pop_back();
+  red_val = data.back();
+  data.pop_back();
 }
 
 std::vector<String> generateHeader(String command) {
@@ -253,9 +280,9 @@ std::vector<String> generateContent(String command) {
   std::vector<String> res = {};
   if (command == "/") {
     res.push_back(html_code);
-    return;
+    return res;
   }
-
+  
   if (command == "/on") {
     res.push_back("{\"message\": \"Lamp turned on\",");
   } else if (command == "/off") {
@@ -266,7 +293,7 @@ std::vector<String> generateContent(String command) {
     res.push_back("{\"message\": \"Lamp is timed\",");
   } else if (command == "/colour") {
     res.push_back("{\"message\": \"Lamp changes colour\",");
-  } else if (command == "") {
+  } else if (command == "/other") {
     res.push_back("{\"message\": \"This is a server to ESP32\",");
   } else {
     res.push_back("{\"message\": \"An unknow request was received.\",");
@@ -281,23 +308,27 @@ std::vector<String> generateContent(String command) {
   return res;
 }
 
-void sendResponse(WiFiClient client, String command) {
+void sendResponse(WiFiClient client, String req) {
+  String command = getCommand(req);
   Serial.println("Sending " + command + " response ...");
 
   std::vector<String> header = generateHeader(command);
   std::vector<String> content = generateContent(command);
   for (String str : header) {
     client.println(str);
+    Serial.println(str);
   }
   client.println();
   for (String str : content) {
     client.println(str);
+    Serial.println(str);
   }
   delay(10);
   client.stop();
 }
 
-void handleReq(String command) {
+void handleReq(String req) {
+  String command = getCommand(req);
   if (command == "/on") {
     onLamp();
   } else if (command == "/off") {
@@ -305,7 +336,9 @@ void handleReq(String command) {
   } else if (command == "/reset") {
     resetLamp();
   } else if (command == "/timed") {
-    timedLamp();
+    timedLamp(req);
+  } else if (command == "/colour") {
+    setColourLamp(req);
   } else {
     // default behaviour
     Serial.println("No action to be done.");
@@ -354,10 +387,11 @@ void loop() {
   // Serial.println(0);
   if (isTimed) {
     if (timerReadSeconds(timer) >= time_sec) {
+      Serial.println(timerReadSeconds(timer));
+      Serial.println(time_sec);
       timerEnd(timer);
       Serial.printf("Time %l is up.", time_sec);
-      isTimed = false;
-      time_sec = 0;
+      offLamp();
     }
   }
 
@@ -368,12 +402,7 @@ void loop() {
   // Only true if a request is sent.
   if (client) {
     String req = getReq(client);
-    Serial.println(1);
-    String command = getCommand(req);
-    Serial.println(2);
-    handleReq(command);
-    Serial.println(3);
-    sendResponse(client, command);
-    Serial.println(4);
+    handleReq(req);
+    sendResponse(client, req);
   }
 }
