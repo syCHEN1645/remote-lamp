@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <vector>
+#include <WebServer.h>
 #define PIN_R 27
 #define PIN_G 26
 #define PIN_B 25
@@ -19,45 +20,137 @@ bool isTimed = false;
 hw_timer_t *timer = NULL;
 WiFiServer server(80);
 
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  connectWiFi(ssid, password);
-  Serial.print("Local IP address: ");
-  Serial.println(WiFi.localIP());
-  server.begin();
-  Serial.println("Server is started at port 80");
-  hardwareSetup();
-}
+const char* html_code PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <title>
+        LAMP CONTROLLER
+    </title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            padding: 10vw;
+        }
+        button, input[type=range] {
+            padding: 10px 30px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .slider-container {
+            margin-bottom: 1em;
+        }
+    </style>
+</head>
 
-void loop() {
-  WiFiClient client = server.accept();
-  // Serial.println(0);
-  if (isTimed) {
-    if (timerReadSeconds(timer) >= time_sec) {
-      timerEnd(timer);
-      Serial.printf("Time %l is up.", time_sec);
-      isTimed = false;
-      time_sec = 0;
-    }
-  }
+<body>
+    <h1>
+        Main Page
+    </h1>
+    <button id="btnOn">
+        On
+    </button>
+    <button id="btnOff">
+        Off
+    </button>
+    <button id="btnReset">
+        Reset
+    </button>
 
-  ledcWrite(PIN_R, red_val);
-  ledcWrite(PIN_G, green_val);
-  ledcWrite(PIN_B, blue_val);
-  
-  // Only true if a request is sent.
-  if (client) {
-    String req = getReq(client);
-    Serial.println(1);
-    String command = getCommand(req);
-    Serial.println(2);
-    handleReq(command);
-    Serial.println(3);
-    sendResponse(client, command);
-    Serial.println(4);
-  }
-}
+    <div class="slider-container">
+        <label for="sliderR">Red: <span id="valR">0</span></label><br>
+        <input type="range" id="sliderR" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="sliderG">Green: <span id="valG">0</span></label><br>
+        <input type="range" id="sliderG" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="sliderB">Blue: <span id="valB">0</span></label><br>
+        <input type="range" id="sliderB" min="0" max="255" value="0"><br>
+    </div>
+
+    <div class="slider-container">
+        <label for="entryTime">Turn off after (minutes): </label><br>
+        <input type="number" id="entryTime" min="1" max="999" placeholder="0"><br>
+        <button id="btnSetTime">Set Timer</button>
+    </div>
+
+    <script type="module">
+        "use strict"
+        import {CMD} from "./commandList.js";
+        const ipAddress = "http://172.20.10.6";
+        
+        function sendCommand(command) {
+            // load is different by different commands
+            let load;
+            if (command == CMD.RGB) {
+                load = [
+                    document.getElementById(`valR`).value,
+                    document.getElementById(`valG`).value,
+                    document.getElementById(`valB`).value
+                ];
+            } else if (command == CMD.TIME) {
+                // send time
+                load = [parseInt(document.getElementById(`entryTime`).value)];
+            } else {
+                load = [];
+            }
+
+            fetch(`${ipAddress}/${command}/${load}`).then(
+                response => {
+                    if (!response.ok) {
+                        throw new Error("Response is not ok.");
+                    }
+                    // return response.text();
+                    return response.json();
+                }
+            ).then(
+                data => {
+                    console.log("Message: ESP returns a message: ", data);
+                    // update information on UI display to match the actual status of device
+                    setSlider("R", parseInt(data.R));
+                    setSlider("G", parseInt(data.G));
+                    setSlider("B", parseInt(data.B));
+                }
+            ).catch(
+                error => {
+                    console.error("Error: ", error);
+                }
+            );
+        }
+
+        function setSlider(colour, val) {
+            document.getElementById(`slider${colour}`).value = val;
+            document.getElementById(`val${colour}`).textContent = val;
+        }
+
+        function updateSlider(colour) {
+            // update text number by slider position/value
+            const val = document.getElementById(`slider${colour}`).value;
+            document.getElementById(`val${colour}`).textContent = val;
+            // send RGB value to device
+            sendCommand();
+        }
+
+
+        document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
+        document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));
+        document.getElementById("btnReset").addEventListener("click", () => sendCommand(CMD.RST));
+        document.getElementById("btnSetTime").addEventListener("click", () => sendCommand(CMD.TIME));
+
+        document.getElementById("sliderR").addEventListener("input", () => updateSlider('R'));
+        document.getElementById("sliderG").addEventListener("input", () => updateSlider('G'));
+        document.getElementById("sliderB").addEventListener("input", () => updateSlider('B'));
+    </script>
+</body>
+</html>
+)rawliteral";
+
+
 
 String getReq(WiFiClient client) {
   // assertion: client is no null
@@ -74,20 +167,6 @@ String getReq(WiFiClient client) {
   return req;
 }
 
-void handleReq(String command) {
-  if (command == "/on") {
-    onLamp();
-  } else if (command == "/off") {
-    offLamp();
-  } else if (command == "/reset") {
-    resetLamp();
-  } else if (command == "/timed") {
-    timedLamp();
-  } else {
-    // default behaviour
-  }
-}
-
 String getCommand(String req) {
   String command = "";
   // do something
@@ -99,8 +178,10 @@ String getCommand(String req) {
     command = "/reset";
   } else if (req.indexOf("/timed") >= 0) {
     command = "/timed";
+  } else if (req.indexOf("GET / ") >= 0 || req.indexOf("GET /HTTP") >= 0) {
+    command = "/";
   } else {
-    command = "";
+    command = "/other";
   }
   return command;
 }
@@ -153,7 +234,11 @@ void setColourLamp() {
 std::vector<String> generateHeader(String command) {
   std::vector<String> res = {};
   res.push_back("HTTP/1.1 200 OK");
-  res.push_back("Content-Type: application/json");
+  if (command == "/") {
+    res.push_back("Content-Type: text/html");
+  } else {
+    res.push_back("Content-Type: application/json");
+  }
   res.push_back("Access-Control-Allow-Origin: *");
   res.push_back("Connection: close");
 
@@ -162,7 +247,9 @@ std::vector<String> generateHeader(String command) {
 
 std::vector<String> generateContent(String command) {
   std::vector<String> res = {};
-  if (command == "/on") {
+  if (command == "/") {
+    res.push_back(html_code);
+  } else if (command == "/on") {
     res.push_back("{\"message\": \"Lamp turned on\",");
   } else if (command == "/off") {
     res.push_back("{\"message\": \"Lamp turned off\",");
@@ -178,7 +265,6 @@ std::vector<String> generateContent(String command) {
     res.push_back("{\"message\": \"An unknow request was received.\",");
   }
 
-  // String info = "{\"red\": \"" + String(red_val) + "\"}"
   res.push_back("\"R\": \"" + String(red_val) + "\",");
   res.push_back("\"G\": \"" + String(green_val) + "\",");
   res.push_back("\"B\": \"" + String(blue_val) + "\",");
@@ -188,9 +274,9 @@ std::vector<String> generateContent(String command) {
   return res;
 }
 
-
 void sendResponse(WiFiClient client, String command) {
-  Serial.println("Sending response ...");
+  Serial.println("Sending " + command + " response ...");
+
   std::vector<String> header = generateHeader(command);
   std::vector<String> content = generateContent(command);
   for (String str : header) {
@@ -202,6 +288,20 @@ void sendResponse(WiFiClient client, String command) {
   }
   delay(10);
   client.stop();
+}
+
+void handleReq(String command) {
+  if (command == "/on") {
+    onLamp();
+  } else if (command == "/off") {
+    offLamp();
+  } else if (command == "/reset") {
+    resetLamp();
+  } else if (command == "/timed") {
+    timedLamp();
+  } else {
+    // default behaviour
+  }
 }
 
 void connectWiFi(const char* wifiName, const char* wifiPassword) {
@@ -228,4 +328,44 @@ void hardwareSetup() {
   ledcWrite(PIN_R, red_val);
   ledcWrite(PIN_G, green_val);
   ledcWrite(PIN_B, blue_val);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  connectWiFi(ssid, password);
+  Serial.print("Local IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+  Serial.println("Server is started at port 80");
+  hardwareSetup();
+}
+
+void loop() {
+  WiFiClient client = server.accept();
+  // Serial.println(0);
+  if (isTimed) {
+    if (timerReadSeconds(timer) >= time_sec) {
+      timerEnd(timer);
+      Serial.printf("Time %l is up.", time_sec);
+      isTimed = false;
+      time_sec = 0;
+    }
+  }
+
+  ledcWrite(PIN_R, red_val);
+  ledcWrite(PIN_G, green_val);
+  ledcWrite(PIN_B, blue_val);
+  
+  // Only true if a request is sent.
+  if (client) {
+    String req = getReq(client);
+    Serial.println(1);
+    String command = getCommand(req);
+    Serial.println(2);
+    handleReq(command);
+    Serial.println(3);
+    sendResponse(client, command);
+    Serial.println(4);
+  }
 }
