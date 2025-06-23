@@ -58,7 +58,13 @@
 
     <script type="module">
         "use strict"
-        import {CMD} from "./commandList.js";
+        const CMD = {
+            ON: 'on',
+            OFF: 'off',
+            RGB: 'colour',
+            TIME: 'timed',
+            RST: 'reset',
+        };
         const ipAddress = "http://172.20.10.6";
         
         function sendCommand(command) {
