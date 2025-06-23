@@ -1,5 +1,4 @@
 #include <WiFi.h>
-
 #include <WebServer.h>
 #define PIN_R 27
 #define PIN_G 26
@@ -209,7 +208,7 @@ std::vector<int> getCommandData(String req) {
     int number = substr.substring(0, end).toInt();
     substr = substr.substring(end + 1, substr.length());
     data.push_back(number);
-    Serial.println(number);
+    // Serial.println(number);
   }
   return data;
 }
@@ -245,10 +244,11 @@ void timedLamp(String req) {
   Serial.println("Timed lamp mode");
   // time_sec = 12;
   std::vector<int> data = getCommandData(req);
-  time_sec = data.back();
+  time_sec = data.back() * 60;
   data.pop_back();
   isTimed = true;
-  timer = timerBegin(1000);
+  timer = timerBegin(1000000);
+  Serial.println(timer == NULL);
 }
 
 void setColourLamp(String req) {
@@ -384,13 +384,10 @@ void setup() {
 
 void loop() {
   WiFiClient client = server.accept();
-  // Serial.println(0);
   if (isTimed) {
     if (timerReadSeconds(timer) >= time_sec) {
-      Serial.println(timerReadSeconds(timer));
-      Serial.println(time_sec);
       timerEnd(timer);
-      Serial.printf("Time %l is up.", time_sec);
+      Serial.printf("Time %l is up.\n", time_sec);
       offLamp();
     }
   }
