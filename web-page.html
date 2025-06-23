@@ -58,7 +58,13 @@
 
     <script type="module">
         "use strict"
-        import {CMD} from "./commandList.js";
+        const CMD = {
+            ON: 'on',
+            OFF: 'off',
+            RGB: 'colour',
+            TIME: 'timed',
+            RST: 'reset',
+        };
         const ipAddress = "http://172.20.10.6";
         
         function sendCommand(command) {
@@ -66,13 +72,13 @@
             let load;
             if (command == CMD.RGB) {
                 load = [
-                    document.getElementById(`valR`).value,
-                    document.getElementById(`valG`).value,
-                    document.getElementById(`valB`).value
+                    document.getElementById(`sliderR`).value,
+                    document.getElementById(`sliderG`).value,
+                    document.getElementById(`sliderB`).value
                 ];
             } else if (command == CMD.TIME) {
                 // send time
-                load = [document.getElementById(`entryTime`).value];
+                load = [parseInt(document.getElementById(`entryTime`).value)];
             } else {
                 load = [];
             }
@@ -88,6 +94,10 @@
             ).then(
                 data => {
                     console.log("Message: ESP returns a message: ", data);
+                    // update information on UI display to match the actual status of device
+                    setSlider("R", parseInt(data.R));
+                    setSlider("G", parseInt(data.G));
+                    setSlider("B", parseInt(data.B));
                 }
             ).catch(
                 error => {
@@ -96,14 +106,22 @@
             );
         }
 
+        // given a number val, set the slider value and text to match val
+        function setSlider(colour, val) {
+            document.getElementById(`slider${colour}`).value = val;
+            document.getElementById(`val${colour}`).textContent = val;
+        }
+
+        // (when the slider is moved) send updated colour to device
         function updateSlider(colour) {
-            // update text number by slider position/value
+            // update text number to match slider position/value
             const val = document.getElementById(`slider${colour}`).value;
             document.getElementById(`val${colour}`).textContent = val;
             // send RGB value to device
-            sendCommand();
+            sendCommand(CMD.RGB);
         }
 
+        window.addEventListener("load", () => sendCommand(CMD.ON));
 
         document.getElementById("btnOn").addEventListener("click", () => sendCommand(CMD.ON));
         document.getElementById("btnOff").addEventListener("click", () => sendCommand(CMD.OFF));
