@@ -81,7 +81,13 @@ const char* html_code PROGMEM = R"rawliteral(
 
     <script type="module">
         "use strict"
-        import {CMD} from "./commandList.js";
+        const CMD = {
+            ON: 'on',
+            OFF: 'off',
+            RGB: 'colour',
+            TIME: 'timed',
+            RST: 'reset',
+        };
         const ipAddress = "http://172.20.10.6";
         
         function sendCommand(command) {
@@ -149,8 +155,6 @@ const char* html_code PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
-
-
 
 String getReq(WiFiClient client) {
   // assertion: client is no null
@@ -249,7 +253,10 @@ std::vector<String> generateContent(String command) {
   std::vector<String> res = {};
   if (command == "/") {
     res.push_back(html_code);
-  } else if (command == "/on") {
+    return;
+  }
+
+  if (command == "/on") {
     res.push_back("{\"message\": \"Lamp turned on\",");
   } else if (command == "/off") {
     res.push_back("{\"message\": \"Lamp turned off\",");
@@ -301,6 +308,7 @@ void handleReq(String command) {
     timedLamp();
   } else {
     // default behaviour
+    Serial.println("No action to be done.");
   }
 }
 
